@@ -113,3 +113,59 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to staging
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+      STAGING_URL: ${{ vars.STAGING_URL }}
+
+    steps:
+      - name: Trigger Render deploy
+        id: trigger
+        run: |
+          response=$(curl -fsS -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":"do_not_clear"}')
+          deploy_id=$(echo "$response" | jq -r '.id')
+          echo "Render deploy ${deploy_id} created"
+          echo "deploy_id=${deploy_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the deploy to go live
+        env:
+          DEPLOY_ID: ${{ steps.trigger.outputs.deploy_id }}
+        run: |
+          max_attempts=40
+          for attempt in $(seq 1 "$max_attempts"); do
+            status=$(curl -fsS "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${DEPLOY_ID}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -r '.status')
+            echo "Attempt ${attempt}/${max_attempts}: deploy status is ${status}"
+            case "$status" in
+              live) exit 0 ;;
+              *failed|canceled|deactivated) exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "Deploy did not go live within ${max_attempts} attempts"
+          exit 1
+
+      - name: Verify /health and /items on staging
+        run: |
+          max_attempts=10
+          for attempt in $(seq 1 "$max_attempts"); do
+            health=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${STAGING_URL}/health") || health=000
+            items=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "${STAGING_URL}/items") || items=000
+            echo "Attempt ${attempt}/${max_attempts}: /health=${health} /items=${items}"
+            if [ "$health" = "200" ] && [ "$items" = "200" ]; then
+              echo "Staging is live and can query PostgreSQL"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Staging verification failed after ${max_attempts} attempts"
+          exit 1
