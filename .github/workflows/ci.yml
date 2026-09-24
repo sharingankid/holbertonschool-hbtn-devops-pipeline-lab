@@ -1,14 +1,12 @@
 # ---------------------------------------------------------------------------
-# Continuous integration for hbtn-devops-pipeline-lab.
+# Continuous integration and delivery for hbtn-devops-pipeline-lab.
 #
-# HEADS UP: this workflow is DELIBERATELY BROKEN. It ships with three separate
-# faults of three different kinds, and repairing them one commit at a time is
-# the pipeline-repair task.
-#
-# Read the run logs in the Actions tab and let them tell you where to look. Do
-# not rewrite the file from scratch: the exercise is the diagnosis, not the
-# typing. Each fault has its own signature, and fixing one only gets you as far
-# as the next.
+#   test   : every push and pull request to main. Lint, then the full Jest
+#            suite against a Postgres service; the JUnit report is always kept.
+#   build  : push to main only, after test. Publishes the runtime image to GHCR
+#            as :<commit sha> (immutable) and :latest (moving).
+#   deploy : push to main only, after build. Triggers the Render staging deploy
+#            and fails unless /health and /items both answer 200.
 # ---------------------------------------------------------------------------
 name: CI
 
