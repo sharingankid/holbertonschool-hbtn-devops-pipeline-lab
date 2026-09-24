@@ -1,6 +1,6 @@
 # hbtn-devops-pipeline-lab
 
-[![CI](https://github.com/sharingankid/holbertonschool-hbtn-devops-pipeline-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sharingankid/holbertonschool-hbtn-devops-pipeline-lab/actions/workflows/ci.yml?query=branch%3Amain)
+![CI](https://github.com/sharingankid/holbertonschool-hbtn-devops-pipeline-lab/actions/workflows/ci.yml/badge.svg)
 
 This repository contains the application used in the **CI/CD Pipeline Essentials** lab. It is a small Express API backed by PostgreSQL. The application and tests are already implemented; your work is to diagnose and extend its delivery pipeline.
 
